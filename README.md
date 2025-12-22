@@ -12,7 +12,10 @@ This tool operates only on singular products and does not perform complex filter
 
 ### List of commands
 
-off_search query "<query string>" - Returns a list of five food products closest to the query string with their barcode numbers.
+```bash
+off_search query "<query string>"
+```
+Returns a list of five food products closest to the query string with their barcode numbers.
 
 ```text
 Results for "chocolate milk":
@@ -24,7 +27,10 @@ Results for "chocolate milk":
 5) Horizon Chocolate Milk — 036632000456
 ```
 
-off_search info "<barcode number>" - Return available nutritional and ingredient information for the food product that matches the given barcode.
+```bash
+off_search info "<barcode number>"
+```
+Return available nutritional and ingredient information for the food product that matches the given barcode.
 
 ```text
 Product: Fairlife Chocolate Milk

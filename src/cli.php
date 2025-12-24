@@ -29,7 +29,57 @@ function handle_info($argc, $argv) {
         exit(1);
     endif;
     $barcode = strtolower(trim($argv[2]));
-    echo "[STUB] Barcode - $barcode\n";
+    $query = "https://world.openfoodfacts.org/api/v0/product/$barcode.json";
+    $data = api_request($query);
+
+    if($data == NULL || !isset($data['product']) || empty($data['product'])):
+        echo "We're sorry, we couldn't find any product with that barcode.\n";
+        exit(0);
+    endif;
+
+    $product = $data['product'];
+
+    $name  = $product['product_name'] ?? 'N/A';
+    $brand = $product['brands'] ?? 'N/A';
+
+    echo "Product: $name\n";
+    echo "Brand: $brand\n\n";
+
+    if(!empty($product['ingredients'])):
+        echo "Ingredients:\n";
+
+        foreach($product['ingredients'] as $ingredient):
+            if(!empty($ingredient['text'])):
+                echo '- ' . $ingredient['text'] . "\n";
+            endif;
+        endforeach;
+    else:
+        echo "Ingredients: N/A\n";
+    endif;
+
+    echo "\n";
+
+    if(!empty($product['nutriments'])):
+        echo "Nutrition (per 100g):\n";
+
+        $nutriments = $product['nutriments'];
+
+        $fields = [
+            'energy-kcal_100g' => 'calories',
+            'fat_100g'         => 'fat',
+            'carbohydrates_100g' => 'carbohydrates',
+            'sugars_100g'      => 'sugar',
+            'proteins_100g'    => 'protein'
+        ];
+
+        foreach($fields as $key => $label):
+            if(isset($nutriments[$key])):
+                echo '- ' . $label . ': ' . $nutriments[$key] . "\n";
+            endif;
+        endforeach;
+    else:
+        echo "Nutrition (per 100g): N/A\n";
+    endif;
 }
 
 function handle_query($argc, $argv) {
@@ -52,7 +102,7 @@ function handle_query($argc, $argv) {
     $data = api_request($url);
 
     if($data == NULL || !isset($data['products']) || empty($data['products'])):
-        echo "We're sorry, no products with that name could be found.\n";
+        echo "We're sorry, no products matching your query could be found.\n";
         exit(0);
     endif;
     
@@ -60,13 +110,9 @@ function handle_query($argc, $argv) {
     $index = 1;
     foreach($data['products'] as $product):
         $name  = $product['product_name'] ?? 'N/A';
-        $brand = $product['brands'] ?? 'N/A';
-        $code  = $product['code'] ?? 'N/A';
-        echo $index . ') ' . $name;
-        if($brand !== 'N/A'):
-            echo ' — ' . $brand;
-        endif;
-        echo ' — ' . $code . "\n";
+        $brand = ' — ' . ($product['brands'] ?? 'N/A');
+        $code  = ' — ' . ($product['code'] ?? 'N/A');
+        echo $index . ') ' . $name . $brand . $code . "\n";
         $index++;
     endforeach;
 }

@@ -1,6 +1,7 @@
 <?php
 $argv = $_SERVER['argv'];
 $argc = $_SERVER['argc'];
+$cache_dir = __DIR__ . '/../cache/';
 
 if($argc < 2):
     echo "Usage:\n";
@@ -28,58 +29,45 @@ function handle_info($argc, $argv) {
         echo "Error: Missing barcode number.\n";
         exit(1);
     endif;
-    $barcode = strtolower(trim($argv[2]));
-    $query = "https://world.openfoodfacts.org/api/v0/product/$barcode.json";
-    $data = api_request($query);
 
-    if($data == NULL || !isset($data['product']) || empty($data['product'])):
-        echo "We're sorry, we couldn't find any product with that barcode.\n";
-        exit(0);
+    $bc = strtolower(trim($argv[2]));
+    if(($data = check_cache('info', $bc)) == false):
+        $query = "https://world.openfoodfacts.net/api/v2/product/$bc.json";
+        $data = api_request($query);
+        if($data == NULL):
+            echo "Error! Search request timed out or failed. Please try again.\n";
+            exit(1);
+        elseif(!isset($data['product']) || empty($data['product'])):
+            echo "We're sorry, we couldn't find any product with that barcode.\n";
+            exit(1);
+        endif;
+        check_cache('info', $bc, $data);
     endif;
 
-    $product = $data['product'];
+    echo "Product: " . ($data['product']['product_name'] ?? 'N/A') . "\n";
+    echo "Brand: " . ($data['product']['brands'] ?? 'N/A') . "\n\n";
+    echo "Ingredients: " . (!empty($data['product']['ingredients']) ? "" : 'N/A') . "\n";
 
-    $name  = $product['product_name'] ?? 'N/A';
-    $brand = $product['brands'] ?? 'N/A';
+    foreach($data['product']['ingredients'] as $ing):
+        if(!empty($ing['text'])):
+            echo '- ' . $ing['text'] . "\n";
+        endif;
+    endforeach;
 
-    echo "Product: $name\n";
-    echo "Brand: $brand\n\n";
+    echo "Nutrition (per 100g): " . (!empty($data['product']['nutriments']) ? "" : 'N/A') . "\n";
+    $fields = [
+        'energy-kcal_100g' => 'calories',
+        'fat_100g'         => 'fat',
+        'carbohydrates_100g' => 'carbohydrates',
+        'sugars_100g'      => 'sugar',
+        'proteins_100g'    => 'protein'
+    ];
 
-    if(!empty($product['ingredients'])):
-        echo "Ingredients:\n";
-
-        foreach($product['ingredients'] as $ingredient):
-            if(!empty($ingredient['text'])):
-                echo '- ' . $ingredient['text'] . "\n";
-            endif;
-        endforeach;
-    else:
-        echo "Ingredients: N/A\n";
-    endif;
-
-    echo "\n";
-
-    if(!empty($product['nutriments'])):
-        echo "Nutrition (per 100g):\n";
-
-        $nutriments = $product['nutriments'];
-
-        $fields = [
-            'energy-kcal_100g' => 'calories',
-            'fat_100g'         => 'fat',
-            'carbohydrates_100g' => 'carbohydrates',
-            'sugars_100g'      => 'sugar',
-            'proteins_100g'    => 'protein'
-        ];
-
-        foreach($fields as $key => $label):
-            if(isset($nutriments[$key])):
-                echo '- ' . $label . ': ' . $nutriments[$key] . "\n";
-            endif;
-        endforeach;
-    else:
-        echo "Nutrition (per 100g): N/A\n";
-    endif;
+    foreach($fields as $key => $label):
+        if(isset($data['product']['nutriments'][$key])):
+            echo '- ' . $label . ': ' . $data['product']['nutriments'][$key] . "\n";
+        endif;
+    endforeach;
 }
 
 function handle_query($argc, $argv) {
@@ -89,23 +77,32 @@ function handle_query($argc, $argv) {
     endif;
     $query = strtolower(trim($argv[2]));
 
-    $base_url = 'https://world.openfoodfacts.org/cgi/search.pl';
-    $params = [
-        'search_terms'  => $query,
-        'search_simple' => 1,
-        'action'        => 'process',
-        'json'          => 1,
-        'page_size'     => 5,
-        'fields'        => 'product_name,brands,code'
-    ];
-    $url = $base_url . '?' . http_build_query($params);
-    $data = api_request($url);
+    if(($data = check_cache('query', $query)) == false):
+        $base_url = 'https://world.openfoodfacts.org/cgi/search.pl';
+        $params = [
+            'search_fields' => 'product_name',
+            'search_terms'  => $query,
+            'search_simple' => 1,
+            'action'        => 'process',
+            'json'          => 1,
+            'page_size'     => 5,
+            'fields'        => 'product_name,brands,code',
+            'lc'            => 'en',
+            'lang'          => 'en',
+        ];
+        $url = $base_url . '?' . http_build_query($params);
+        echo "Searching Open Food Facts...\n";
+        $data = api_request($url);
 
-    if($data == NULL || !isset($data['products']) || empty($data['products'])):
-        echo "We're sorry, no products matching your query could be found.\n";
-        exit(0);
+        if($data == NULL):
+            echo "Error! Search request timed out or failed. Please try again.\n";
+            exit(1);
+        elseif(!isset($data['products']) || empty($data['products'])):
+            echo "We're sorry, no matching products could be found.\n";
+            exit(1);
+        endif;
     endif;
-    
+
     echo 'Results for "' . $query . "\":\n\n";
     $index = 1;
     foreach($data['products'] as $product):
@@ -117,13 +114,13 @@ function handle_query($argc, $argv) {
     endforeach;
 }
 
-function api_request($url) {
+function api_request($url, $timeout = 30) {
     $ch = curl_init($url);
 
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_USERAGENT, 'off_search/1.0 (https://github.com/mathias-schnell/off_search)');
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
 
     $response = curl_exec($ch);
 
@@ -146,4 +143,17 @@ function api_request($url) {
     endif;
 
     return $decoded;
+}
+
+function check_cache($command, $arg, $data = null) {
+    $filename = $cache_dir . $command . base64_encode($arg) . '.json';
+    if(file_exists($filename)):
+        $contents = file_get_contents($filename);
+        return json_decode($contents, true);
+    elseif($data !== null):
+        file_put_contents($filename, json_encode($data));
+        return true;
+    else:
+        return false;
+    endif;
 }

@@ -28,6 +28,13 @@ switch($command):
         exit(1);
 endswitch;
 
+/**
+ * Handle the `info` command.
+ *
+ * Validates arguments, fetches product data by barcode from the
+ * Open Food Facts API (or cache), and prints product details,
+ * ingredients and nutrition information to stdout.
+ */
 function handle_info($argc, $argv) {
     if($argc < 3):
         echo "Error: Missing barcode number.\n";
@@ -74,6 +81,13 @@ function handle_info($argc, $argv) {
     endforeach;
 }
 
+/**
+ * Handle the `query` command.
+ *
+ * Validates arguments, constructs a search request to the
+ * Open Food Facts search API (or cache), displays a short list
+ * of matching products and prompts the user to select one.
+ */
 function handle_query($argc, $argv) {
     if($argc < 3):
         echo "Error: Missing query string.\n";
@@ -130,6 +144,13 @@ function handle_query($argc, $argv) {
     endif;
 }
 
+/**
+ * Perform an HTTP GET request and decode JSON.
+ *
+ * Uses cURL to fetch the given URL with a timeout, verifies
+ * the HTTP response code and returns the decoded JSON as an
+ * associative array or null on error.
+ */
 function api_request($url, $timeout = 30) {
     $ch = curl_init($url);
 
@@ -161,6 +182,14 @@ function api_request($url, $timeout = 30) {
     return $decoded;
 }
 
+/**
+ * Check or populate a simple filesystem cache.
+ *
+ * If `$data` is null, attempts to read a cached JSON file for
+ * the given `$command` and `$arg` and returns the decoded data
+ * or `false` if not present. If `$data` is provided, writes it
+ * to the cache and returns `true`.
+ */
 function check_cache($command, $arg, $data = null) {
     global $cache_dir;
     $dir = $cache_dir . $command . '/';

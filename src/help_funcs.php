@@ -16,6 +16,7 @@ USAGE:
   off_search query "<search terms>" [OPTIONS]
 
 OPTIONS:
+  --clear-cache     Clear the local cache
   --limit <n>       Number of results to return (default: 5)
   --no-cache        Ignore cached results and query the API directly
 

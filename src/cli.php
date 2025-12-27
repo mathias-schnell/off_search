@@ -4,7 +4,7 @@ require_once __DIR__ . '/cache_funcs.php';
 require_once __DIR__ . '/command_funcs.php';
 require_once __DIR__ . '/help_funcs.php';
 
-$options = getopt("v", ["version"]);
+$options = getopt("v", ["clear-cache", "version"]);
 $valid_commands = ['query', 'info'];
 $argv = $_SERVER['argv'];
 $argc = $_SERVER['argc'];
@@ -12,6 +12,25 @@ $cache_dir = __DIR__ . '/../cache/';
 
 if(isset($options['v']) || isset($options['version'])) :
     echo "off_search v1.0\n";
+    exit(0);
+endif;
+
+if(isset($options['clear-cache'])):
+    if(is_dir($cache_dir)):
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($cache_dir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($files as $fileinfo) :
+            $todo = ($fileinfo->isDir() ? 'rmdir' : 'unlink');
+            $todo($fileinfo->getRealPath());
+        endforeach;
+
+        rmdir($cache_dir);
+    endif;
+
+    echo "Cache cleared successfully.\n";
     exit(0);
 endif;
 

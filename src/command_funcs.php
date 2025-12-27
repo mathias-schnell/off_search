@@ -32,15 +32,15 @@ function handle_info($argc, $argv) {
 
     echo "Product: " . ($data['product']['product_name'] ?? 'N/A') . "\n";
     echo "Brand: " . ($data['product']['brands'] ?? 'N/A') . "\n\n";
-    echo "Ingredients: " . (!empty($data['product']['ingredients']) ? "" : 'N/A') . "\n";
+    echo "Ingredients: " . (isset($data['product']['ingredients']) ? "" : 'N/A') . "\n";
 
-    foreach($data['product']['ingredients'] as $ing):
+    foreach(($data['product']['ingredients'] ?? []) as $ing):
         if(!empty($ing['text'])):
             echo '- ' . $ing['text'] . "\n";
         endif;
     endforeach;
 
-    echo "\nNutrition (per 100g): " . (!empty($data['product']['nutriments']) ? "" : 'N/A') . "\n";
+    echo "\nNutrition (per 100g): " . (isset($data['product']['nutriments']) ? "" : 'N/A') . "\n";
     $fields = [
         'energy-kcal_100g' => 'calories',
         'fat_100g'         => 'fat',

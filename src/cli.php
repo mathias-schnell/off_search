@@ -58,7 +58,7 @@ function handle_info($argc, $argv) {
         endif;
     endforeach;
 
-    echo "Nutrition (per 100g): " . (!empty($data['product']['nutriments']) ? "" : 'N/A') . "\n";
+    echo "\nNutrition (per 100g): " . (!empty($data['product']['nutriments']) ? "" : 'N/A') . "\n";
     $fields = [
         'energy-kcal_100g' => 'calories',
         'fat_100g'         => 'fat',
@@ -108,15 +108,26 @@ function handle_query($argc, $argv) {
         check_cache('query', $query, $data);
     endif;
 
-    echo 'Results for "' . $query . "\":\n\n";
-    $index = 1;
-    foreach($data['products'] as $product):
+    echo "Results for $query:\n\n";
+    foreach($data['products'] as $index => $product):
         $name  = $product['product_name'] ?? 'N/A';
         $brand = ' — ' . ($product['brands'] ?? 'N/A');
         $code  = ' — ' . ($product['code'] ?? 'N/A');
-        echo $index . ') ' . $name . $brand . $code . "\n";
-        $index++;
+        echo "[" . ($index + 1) . "] $name $brand $code\n";
     endforeach;
+    echo "\nSelect an item [1-" . count($data['products']) . "] or press Enter to cancel: ";
+
+    if (($input = trim(fgets(STDIN))) === ''):
+        return;
+    endif;
+
+    if (!isset($data['products'][(int)$input - 1])):
+        echo "Invalid selection.\n";
+        return;
+    else:
+        echo "\n";
+        handle_info(3, ['cli.php', 'info', $data['products'][$input - 1]['code']]);
+    endif;
 }
 
 function api_request($url, $timeout = 30) {

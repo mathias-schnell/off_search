@@ -3,6 +3,10 @@ $argv = $_SERVER['argv'];
 $argc = $_SERVER['argc'];
 $cache_dir = __DIR__ . '/../cache/';
 
+if(!is_dir($cache_dir)):
+    mkdir($cache_dir, 0755, true);
+endif;
+
 if($argc < 2):
     echo "Usage:\n";
     echo "\toff_search query \"<query string>\"\n";
@@ -101,6 +105,7 @@ function handle_query($argc, $argv) {
             echo "We're sorry, no matching products could be found.\n";
             exit(1);
         endif;
+        check_cache('query', $query, $data);
     endif;
 
     echo 'Results for "' . $query . "\":\n\n";
@@ -146,10 +151,18 @@ function api_request($url, $timeout = 30) {
 }
 
 function check_cache($command, $arg, $data = null) {
-    $filename = $cache_dir . $command . base64_encode($arg) . '.json';
+    global $cache_dir;
+    $dir = $cache_dir . $command . '/';
+    $filename = $dir . hash('sha1', $arg) . '.json';
+
+    if(!is_dir($dir)):
+        mkdir($dir, 0755, true);
+    endif;
+    
     if(file_exists($filename)):
         $contents = file_get_contents($filename);
-        return json_decode($contents, true);
+        $data = json_decode($contents, true);
+        return is_array($data) ? $data : false;
     elseif($data !== null):
         file_put_contents($filename, json_encode($data));
         return true;

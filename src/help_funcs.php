@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Display the global help message for the CLI tool
+ *
+ * Prints usage, options, commands, examples and notes for the
+ * `off_search` tool
+ */
 function off_search_main_help() {
     echo <<<EOF
 off_search — Open Food Facts CLI search tool
@@ -34,6 +40,12 @@ EOF;
     exit(0);
 }
 
+/**
+ * Display help for the `info` command
+ *
+ * Shows usage, options, description, examples and notes specific to
+ * `off_search info <barcode>`.
+ */
 function off_search_info_help() {
     echo <<<EOF
 off_search info — Fetch detailed nutrition information for a product
@@ -61,6 +73,12 @@ EOF;
     exit(0);
 }
 
+/**
+ * Display help for the `query` command
+ *
+ * Shows usage, options, description, examples and notes specific to
+ * `off_search query "<search terms>"`
+ */
 function off_search_query_help() {
     echo <<<EOF
 off_search query — Search for products by name using Open Food Facts
@@ -75,6 +93,7 @@ OPTIONS:
 DESCRIPTION:
   Use this command to search for products by name. 
   Returns a list of products with their brand and barcode.
+  Prompts the user to select a product from the list for more details.
 
 EXAMPLES:
   off_search query "dark chocolate"

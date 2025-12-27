@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Perform an HTTP GET request and decode JSON.
+ * Perform an HTTP GET request and decode JSON response
  *
  * Uses cURL to fetch the given URL with a timeout, verifies
  * the HTTP response code and returns the decoded JSON as an
- * associative array or null on error.
+ * associative array or null on error
  */
 function api_request($url, $timeout = 30) {
     $ch = curl_init($url);

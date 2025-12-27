@@ -2,11 +2,11 @@
 require_once __DIR__ . '/cache_funcs.php';
 
 /**
- * Handle the `info` command.
+ * Handle the `info` command
  *
  * Validates arguments, fetches product data by barcode from the
  * Open Food Facts API (or cache), and prints product details,
- * ingredients and nutrition information to stdout.
+ * ingredients and nutrition information
  */
 function handle_info($argc, $argv) {
     if($argc < 3):
@@ -14,8 +14,10 @@ function handle_info($argc, $argv) {
         exit(1);
     endif;
 
+    $options = parse_options($argv);
+    $no_cache = $options['flags']['no-cache'] ?? false;
     $bc = strtolower(trim($argv[2]));
-    if(($data = check_cache('info', $bc)) == false):
+    if(($data = check_cache('info', $bc)) == false || $no_cache):
         $query = "https://world.openfoodfacts.net/api/v2/product/$bc.json";
         $data = api_request($query);
         if($data == NULL):
@@ -55,11 +57,12 @@ function handle_info($argc, $argv) {
 }
 
 /**
- * Handle the `query` command.
+ * Handle the `query` command
  *
  * Validates arguments, constructs a search request to the
  * Open Food Facts search API (or cache), displays a short list
- * of matching products and prompts the user to select one.
+ * of matching products and prompts the user to select one for more
+ * details by calling `handle_info()`
  */
 function handle_query($argc, $argv) {
     if($argc < 3):
@@ -67,8 +70,11 @@ function handle_query($argc, $argv) {
         exit(1);
     endif;
     $query = strtolower(trim($argv[2]));
+    $options = parse_options($argv);
+    $no_cache = $options['flags']['no-cache'] ?? false;
+    $limit = (int)($options['options']['limit'] ?? 5);
 
-    if(($data = check_cache('query', $query)) == false):
+    if(($data = check_cache('query', $query)) == false || $no_cache):
         $base_url = 'https://world.openfoodfacts.org/cgi/search.pl';
         $params = [
             'search_fields' => 'product_name',
@@ -76,7 +82,7 @@ function handle_query($argc, $argv) {
             'search_simple' => 1,
             'action'        => 'process',
             'json'          => 1,
-            'page_size'     => 5,
+            'page_size'     => 50,
             'fields'        => 'product_name,brands,code',
             'lc'            => 'en',
             'lang'          => 'en',
@@ -96,6 +102,7 @@ function handle_query($argc, $argv) {
     endif;
 
     echo "Results for $query:\n\n";
+    $data['products'] = array_slice($data['products'], 0, $limit);
     foreach($data['products'] as $index => $product):
         $name  = $product['product_name'] ?? 'N/A';
         $brand = ' — ' . ($product['brands'] ?? 'N/A');
@@ -115,4 +122,40 @@ function handle_query($argc, $argv) {
         echo "\n";
         handle_info(3, ['cli.php', 'info', $data['products'][$input - 1]['code']]);
     endif;
+}
+
+/**
+ * Parse trailing CLI options and flags from an argv array
+ *
+ * Scans `$argv` starting at `$start_index` and returns an associative
+ * array with three keys:
+ *  - `flags`: boolean flags (e.g. `--no-cache` -> `['no-cache' => true]`)
+ *  - `options`: options with values (e.g. `--limit=10` or `--limit 10`)
+ *
+ * It supports both `--name=value` and `--name value` forms. Items that do
+ * not begin with `--` are collected into `args`
+ */
+function parse_options(array $argv, int $start_index = 3): array {
+    $result = ['flags' => [], 'options' => []];
+    $len = count($argv);
+
+    for ($i = $start_index; $i < $len; $i++):
+        $arg = $argv[$i];
+        if (strlen($arg) >= 2 && substr($arg, 0, 2) === '--'):
+            $token = substr($arg, 2);
+            if (strpos($token, '=') !== false):
+                list($name, $value) = explode('=', $token, 2);
+                $result['options'][$name] = $value;
+            else:
+                if (($i + 1) < $len && strlen($argv[$i + 1]) > 0 && $argv[$i + 1][0] !== '-'):
+                    $result['options'][$token] = $argv[$i + 1];
+                    $i++;
+                else:
+                    $result['flags'][$token] = true;
+                endif;
+            endif;
+        endif;
+    endfor;
+
+    return $result;
 }
